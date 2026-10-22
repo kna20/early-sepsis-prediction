@@ -1,0 +1,137 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from pathlib import Path
+
+#Settings
+
+data_folder = Path("sepsis_dataset/training_setA")
+max_files = 1500
+files = sorted(data_folder.glob("*.psv"))[:max_files]
+print(f"Analyzing {len(files)} patient files...\n")
+
+#initialize statistics
+
+total_hours = 0
+septic_patients = 0
+positive_hours = 0
+
+missing_counts = None
+feature_counts = None
+feature_sums = None
+feature_squared_sums = None
+feature_mins = None
+feature_maxs = None
+
+#process patients 
+for i, file in enumerate(files):
+    df = pd.read_csv(file, sep="|")
+    labels = df["SepsisLabel"]
+    total_hours += len(df)
+    positive_hours += labels.sum()
+    if labels.max() == 1:
+        septic_patients += 1
+    features = df.drop(columns=["SepsisLabel"])
+    if missing_counts is None:
+        columns = features.columns
+
+        missing_counts = pd.Series(0, index=columns, dtype=float)
+        feature_counts = pd.Series(0, index=columns, dtype=float)
+        feature_sums = pd.Series(0, index=columns, dtype=float)
+        feature_squared_sums = pd.Series(0, index=columns, dtype=float)
+        feature_mins = pd.Series(np.inf, index=columns)
+        feature_maxs = pd.Series(-np.inf, index=columns)
+
+    missing_counts += features.isna().sum()
+    feature_counts += features.count()
+    feature_sums += features.sum()
+    feature_squared_sums += (features ** 2).sum()
+    feature_mins = pd.concat( [feature_mins, features.min()], axis=1).min(axis=1)
+    feature_maxs = pd.concat([feature_maxs, features.max()], axis=1).max(axis=1)
+    if (i + 1) % 100 == 0:
+        print(f"Processed {i + 1} files")
+
+#Calculate statistics
+
+n_patients = len(files)
+nonseptic_patients = n_patients - septic_patients
+negative_hours = total_hours - positive_hours
+patient_prevalence = septic_patients / n_patients * 100
+hourly_prevalence = positive_hours / total_hours * 100
+missing_percent = missing_counts / total_hours * 100
+means = feature_sums / feature_counts
+variances = ( feature_squared_sums / feature_counts - means ** 2).clip(lower=0)
+stds = np.sqrt(variances)
+stats = pd.DataFrame({
+    "Mean": means,
+    "Std": stds,
+    "Min": feature_mins,
+    "Max": feature_maxs,
+    "Missing (%)": missing_percent
+})
+
+
+print("\n========== DATASET SUMMARY ==========")
+print(f"Patients: {n_patients}")
+print(f"Hourly observations: {total_hours}")
+print(f"Features: {len(columns)}")
+print(f"\nSeptic patients: {septic_patients}")
+print(f"Non-septic patients: {nonseptic_patients}")
+print(f"Patient-level sepsis prevalence: {patient_prevalence:.2f}%")
+print(f"\nPositive hourly labels: {positive_hours}")
+print(f"Negative hourly labels: {negative_hours}")
+print(f"Hourly sepsis prevalence: {hourly_prevalence:.2f}%")
+print("\n========== FEATURE STATISTICS ==========")
+print(stats.round(2).to_string())
+#Save results
+output = Path("dataset_analysis")
+output.mkdir(exist_ok=True)
+stats.to_csv(output / "feature_statistics.csv")
+
+summary = pd.DataFrame({
+    "Statistic": [
+        "Patients",
+        "Hourly observations",
+        "Features",
+        "Septic patients",
+        "Non-septic patients",
+        "Patient-level prevalence (%)",
+        "Positive hourly labels",
+        "Negative hourly labels",
+        "Hourly prevalence (%)"
+    ],
+    "Value": [
+        n_patients,
+        total_hours,
+        len(columns),
+        septic_patients,
+        nonseptic_patients,
+        patient_prevalence,
+        positive_hours,
+        negative_hours,
+        hourly_prevalence
+    ]})
+
+summary.to_csv(output / "dataset_summary.csv", index=False)
+
+#Class balance figure
+plt.figure(figsize=(6, 4))
+plt.bar(["Non-septic", "Septic"],[nonseptic_patients, septic_patients])
+plt.title("Patient-Level Class Distribution")
+plt.ylabel("Number of Patients")
+plt.tight_layout()
+plt.savefig(output / "class_distribution.png", dpi=300)
+plt.show()
+
+# missing value figures
+
+top_missing = missing_percent.sort_values(ascending=False).head(15)
+plt.figure(figsize=(8, 5))
+plt.barh(top_missing.index[::-1],top_missing.values[::-1])
+plt.xlabel("Missing Values (%)")
+plt.title("15 Features With Highest Missingness")
+plt.tight_layout()
+plt.savefig(output / "missing_values.png", dpi=300)
+plt.show()
+print("\nAnalysis complete!")
+print(f"Results saved in: {output.resolve()}")
