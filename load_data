@@ -1,0 +1,84 @@
+import requests
+import time
+from pathlib import Path
+from bs4 import BeautifulSoup
+
+base_url = "https://physionet.org/files/challenge-2019/1.0.0/training/"
+destination = Path("sepsis_dataset")
+
+session = requests.Session()
+
+failed_files = []
+
+
+def download_folder(folder):
+    save_dir = destination / folder
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+    # Get the list of patient files
+    response = session.get(base_url + folder + "/", timeout=60)
+    response.raise_for_status()
+
+    soup = BeautifulSoup(response.text, "html.parser")
+    links = soup.find_all("a", href=True)
+
+    for link in links:
+        filename = link["href"].split("/")[-1]
+
+        if not filename.endswith(".psv"):
+            continue
+
+        filepath = save_dir / filename
+
+        # Skip already downloaded files
+        if filepath.exists() and filepath.stat().st_size > 0:
+            continue
+
+        url = base_url + folder + "/" + filename
+
+        success = False
+
+        for attempt in range(5):
+            try:
+                with session.get(url, stream=True, timeout=60) as r:
+                    r.raise_for_status()
+
+                    # Download to a temporary file
+                    temp_path = filepath.with_suffix(".tmp")
+
+                    with open(temp_path, "wb") as f:
+                        for chunk in r.iter_content(chunk_size=8192):
+                            if chunk:
+                                f.write(chunk)
+
+                    # Rename only after successful download
+                    temp_path.replace(filepath)
+
+                print("Downloaded:", filename)
+                success = True
+                break
+
+            except requests.exceptions.RequestException as e:
+                print(f"Error downloading {filename}: {e}")
+                print(f"Retrying ({attempt + 1}/5)...")
+                time.sleep(5 * (attempt + 1))
+
+        if not success:
+            failed_files.append(f"{folder}/{filename}")
+            print("Skipping:", filename)
+
+        # Small delay to avoid overwhelming the server
+        time.sleep(0.2)
+
+
+download_folder("training_setA")
+download_folder("training_setB")
+
+print("\nDownload process finished.")
+
+if failed_files:
+    print(f"\nFailed downloads ({len(failed_files)}):")
+    for file in failed_files:
+        print(file)
+else:
+    print("All listed files downloaded successfully!")
