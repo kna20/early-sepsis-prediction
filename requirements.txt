@@ -1,7 +1,10 @@
-Dnumpy
+numpy
 pandas
 matplotlib
 seaborn
 scikit-learn
 xgboost
 jupyter
+beautifulsoup4
+requests
+
