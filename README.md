@@ -1,7 +1,4 @@
-# early-sepsis-prediction
-# Early Sepsis Prediction Using Machine Learning
-
-**A Comparison of Algorithms and Clinical Feature Groups**
+# Will It Travel? Early Sepsis Prediction Across Hospitals
 
 **Course:** EECE 490/690 – Introduction to Machine Learning  
 **University:** American University of Beirut  
@@ -9,49 +6,65 @@
 
 ## Project Overview
 
-This project investigates early sepsis prediction using machine learning on ICU patient data. Our goal is to compare different algorithms and determine which groups of clinical features contribute most to predicting sepsis approximately six hours before onset.
+This project investigates whether machine learning models trained to predict sepsis in one hospital can generalize to patients in another hospital.
+
+We compare different algorithms, clinical feature groups, missingness indicators, and temporal features to understand how these choices affect early sepsis prediction.
 
 ## Dataset
 
-We use the [PhysioNet/Computing in Cardiology Challenge 2019 dataset](https://physionet.org/content/challenge-2019/1.0.0/), containing 40,336 ICU patient records with hourly measurements of 40 features.
+We use the [PhysioNet/Computing in Cardiology Challenge 2019 dataset](https://physionet.org/content/challenge-2019/1.0.0/), containing hourly ICU measurements from 40,336 patients across two publicly available hospitals.
 
-The dataset includes:
+The dataset includes 40 original features:
 - 8 vital signs
 - 26 laboratory measurements
-- 6 demographic and administrative features
+- 6 demographic and administrative variables
 
-## Proposed Methodology
+Sepsis labels are designed to support prediction approximately six hours before onset.
 
-We plan to compare three algorithms:
-1. Logistic Regression (baseline)
-2. Random Forest
-3. XGBoost
+## Methodology
 
-We will investigate different clinical feature groups individually and in combination.
+Hospital A is divided into 80% development patients and 20% held-out test patients.
 
-Hospital A will be used for training and validation, with an 80/20 patient-level split. Hospital B will be reserved for external testing.
+We use five-fold patient-level cross-validation on the development set for model comparisons. Hospital B serves as an external test dataset to assess cross-hospital generalization.
 
-Missing measurements will be handled using forward filling and training-set-based median imputation.
+Our preprocessing includes causal forward filling, training-based median imputation, standardization, and optional missingness indicators.
 
-## Evaluation
+## Experiments
 
-We plan to evaluate the models using:
-- AUROC and AUPRC
-- Precision, Recall, and F1-score
-- PhysioNet clinical utility score
+**Completed:**
+- Logistic Regression baselines
+- Class weighting
+- Missingness indicators and time since last measurement
+- Clinical feature-group comparisons
+- ICULOS ablation experiments
+- Three-hour temporal features, including rolling means, variability, and changes
 
-## Future Experiments
+**Next steps:**
+- Evaluate Logistic Regression on held-out Hospital A patients and Hospital B
+- Implement and evaluate Random Forest
+- Implement and evaluate XGBoost
+- Compare model performance across hospitals
 
-If time permits, we will investigate temporal feature engineering using rolling averages, variability, and measurement changes over 3-hour and 6-hour windows.
+## Evaluation Metrics
+
+We evaluate models using AUROC, AUPRC, precision, recall, F1-score, false positive rate, and the PhysioNet clinical utility score.
+
+## Repository Structure
+
+- `sepsis.py` — Shared data-loading, preprocessing, and evaluation functions
+- `02_holdout_70_15_15.ipynb` — Initial holdout experiments
+- `03_baseline_cv.ipynb` — Logistic Regression baselines
+- `04_missingness.ipynb` — Missingness experiments
+- `05_feature_groups.ipynb` — Clinical feature groups
+- `06_iculos_check.ipynb` — ICULOS investigation
+- `07_temporal_features.ipynb` — Temporal feature engineering
+- `archive/` — Earlier exploratory and superseded work
+- `requirements.txt` — Python dependencies
 
 ## Tools
 
-Python, Pandas, NumPy, Scikit-learn, XGBoost, and Matplotlib.
-
-## Project Status
-
-Initial development — data exploration and baseline implementation.
+Python, Pandas, NumPy, Scikit-learn, XGBoost, Matplotlib, and Jupyter/Google Colab.
 
 ## Dataset Access
 
-The dataset is available from PhysioNet. Raw patient files are not included in this repository.
+The dataset is available publicly through PhysioNet. Raw patient files are not included in this repository.
