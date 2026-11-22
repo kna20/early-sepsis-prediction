@@ -218,3 +218,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# PhysioNet sepsis datasets
+sepsis_dataset/
+training_setA/
+training_setB/
+*.psv
+*.zip
